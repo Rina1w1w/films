@@ -1,28 +1,20 @@
-import 'dart:io';
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../models/movie.dart';
+import '../bloc/movie_cubit.dart';
+import '../bloc/movie_state.dart';
 import 'add_edit_movie_page.dart';
-import 'settings_page.dart';
 
 class HomePage extends StatefulWidget {
-  final bool isDark;
-  final Function(bool) onThemeChanged;
+  const HomePage({super.key});
 
-  const HomePage({
-    super.key,
-    required this.isDark,
-    required this.onThemeChanged,
-  });
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  final box = Hive.box<Movie>('moviesBox');
-
   Widget _getMovieImage(Movie movie) {
     if (movie.imagePath == null) {
       return Container(
@@ -34,29 +26,12 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      if (movie.imagePath!.startsWith('data:image')) {
-        return Image.memory(
-          base64Decode(movie.imagePath!.split(',')[1]),
-          width: 50,
-          height: 50,
-          fit: BoxFit.cover,
-        );
-      }
-      
-      final file = File(movie.imagePath!);
-      return Image.file(
-        file,
+      final base64Data = movie.imagePath!.split(',')[1];
+      return Image.memory(
+        base64Decode(base64Data),
         width: 50,
         height: 50,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 50,
-            height: 50,
-            color: Colors.grey[300],
-            child: const Icon(Icons.broken_image, size: 30),
-          );
-        },
       );
     } catch (e) {
       return Container(
@@ -74,66 +49,65 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Любимые фильмы'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SettingsPage(
-                    isDark: widget.isDark,
-                    onThemeChanged: widget.onThemeChanged,
-                  ),
-                ),
+          BlocBuilder<MovieCubit, MovieState>(
+            builder: (context, state) {
+              return Switch(
+                value: state.isDarkTheme,
+                onChanged: (value) {
+                  context.read<MovieCubit>().toggleTheme(value);
+                },
               );
             },
           ),
         ],
+      ),
+      body: BlocBuilder<MovieCubit, MovieState>(
+        builder: (context, state) {
+          return ListView.builder(
+            itemCount: state.movies.length,
+            itemBuilder: (_, index) {
+              final movie = state.movies[index];
+              return ListTile(
+                leading: _getMovieImage(movie),
+                title: Text(movie.title),
+                subtitle: Text('${movie.year} • ${movie.genre}'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete),
+                  onPressed: () {
+                    context.read<MovieCubit>().deleteMovie(index);
+                  },
+                ),
+                onTap: () async {
+                  final updated = await Navigator.push<Movie>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AddEditMoviePage(
+                        movie: movie,
+                        index: index,
+                      ),
+                    ),
+                  );
+                  if (updated != null) {
+                    context.read<MovieCubit>().updateMovie(index, updated);
+                  }
+                },
+              );
+            },
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         child: const Icon(Icons.add),
         onPressed: () async {
           final movie = await Navigator.push<Movie>(
             context,
-            MaterialPageRoute(builder: (_) => const AddEditMoviePage()),
+            MaterialPageRoute(
+              builder: (_) => const AddEditMoviePage(),
+            ),
           );
           if (movie != null) {
-            box.add(movie);
-            setState(() {});
+            context.read<MovieCubit>().addMovie(movie);
           }
-        },
-      ),
-      body: ListView.builder(
-        itemCount: box.length,
-        itemBuilder: (_, index) {
-          final movie = box.getAt(index)!;
-          return ListTile(
-            leading: _getMovieImage(movie),
-            title: Text(movie.title),
-            subtitle: Text('${movie.year} • ${movie.genre}'),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () {
-                box.deleteAt(index);
-                setState(() {});
-              },
-            ),
-            onTap: () async {
-              final updated = await Navigator.push<Movie>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddEditMoviePage(
-                    movie: movie,
-                    index: index,
-                  ),
-                ),
-              );
-              if (updated != null) {
-                box.putAt(index, updated);
-                setState(() {});
-              }
-            },
-          );
         },
       ),
     );
