@@ -1,5 +1,4 @@
-import 'dart:io';
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -19,7 +18,7 @@ class _AddEditMoviePageState extends State<AddEditMoviePage> {
   final titleCtrl = TextEditingController();
   final yearCtrl = TextEditingController();
   String genre = 'Драма';
-  String? _imageBase64; 
+  String? _imageBase64; // храним ТОЛЬКО base64
 
   @override
   void initState() {
@@ -35,11 +34,12 @@ class _AddEditMoviePageState extends State<AddEditMoviePage> {
   Future<void> pickImage() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
-    
+
     if (image != null) {
       final bytes = await image.readAsBytes();
       final base64String = base64Encode(bytes);
       final mimeType = _getMimeType(image.name);
+
       setState(() {
         _imageBase64 = 'data:image/$mimeType;base64,$base64String';
       });
@@ -48,10 +48,10 @@ class _AddEditMoviePageState extends State<AddEditMoviePage> {
 
   String _getMimeType(String filename) {
     if (filename.toLowerCase().endsWith('.png')) return 'png';
-    if (filename.toLowerCase().endsWith('.jpg')  
+    if (filename.toLowerCase().endsWith('.jpg') 
         filename.toLowerCase().endsWith('.jpeg')) return 'jpeg';
     if (filename.toLowerCase().endsWith('.gif')) return 'gif';
-    return 'jpeg'; 
+    return 'jpeg';
   }
 
   Widget _buildImageWidget() {
@@ -70,55 +70,29 @@ class _AddEditMoviePageState extends State<AddEditMoviePage> {
         ),
       );
     }
-    
-    if (_imageBase64!.startsWith('data:image')) {
-      try {
-        final base64Data = _imageBase64!.split(',')[1];
-        return Image.memory(
-          base64Decode(base64Data),
-          width: 120,
-          height: 120,
-          fit: BoxFit.cover,
-        );
-      } catch (e) {
-        return Container(
-          width: 120,
-          height: 120,
-          color: Colors.red[100],
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error, size: 40),
-              SizedBox(height: 8),
-              Text('Ошибка картинки', style: TextStyle(fontSize: 12)),
-            ],
-          ),
-        );
-      }
-    } else {
-      try {
-        return Image.file(
-          File(_imageBase64!),
-          width: 120,
-          height: 120,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 120,
-              height: 120,
-              color: Colors.grey[300],
-              child: const Icon(Icons.broken_image, size: 40),
-            );
-          },
-        );
-      } catch (e) {
-        return Container(
-          width: 120,
-          height: 120,
-          color: Colors.grey[300],
-          child: const Icon(Icons.photo, size: 40),
-        );
-      }
+
+    try {
+      final base64Data = _imageBase64!.split(',')[1];
+      return Image.memory(
+        base64Decode(base64Data),
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+      );
+    } catch (e) {
+      return Container(
+        width: 120,
+        height: 120,
+        color: Colors.red[100],
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error, size: 40),
+            SizedBox(height: 8),
+            Text('Ошибка картинки', style: TextStyle(fontSize: 12)),
+          ],
+        ),
+      );
     }
   }
 
@@ -133,7 +107,7 @@ class _AddEditMoviePageState extends State<AddEditMoviePage> {
             TextField(
               controller: titleCtrl,
               decoration: const InputDecoration(labelText: 'Название'),
-              ),
+            ),
             TextField(
               controller: yearCtrl,
               keyboardType: TextInputType.number,
@@ -162,7 +136,7 @@ class _AddEditMoviePageState extends State<AddEditMoviePage> {
                   );
                   return;
                 }
-                
+
                 Navigator.pop(
                   context,
                   Movie(
